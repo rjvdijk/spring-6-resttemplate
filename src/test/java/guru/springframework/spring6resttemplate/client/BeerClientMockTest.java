@@ -23,7 +23,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.math.BigDecimal;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.UUID;
 
@@ -52,25 +51,28 @@ public class BeerClientMockTest {
     @Mock
     RestTemplateBuilder mockRestTemplateBuilder = new RestTemplateBuilder(new MockServerRestTemplateCustomizer());
 
+    BeerDTO dto;
+    String dtoJson;
+
     @BeforeEach
-    void setUp() {
+    void setUp() throws JsonProcessingException {
         RestTemplate restTemplate = restTemplateBuilderConfigured.build();
         server = MockRestServiceServer.bindTo(restTemplate).build();
         when(mockRestTemplateBuilder.build()).thenReturn(restTemplate);
         beerClient = new BeerClientImpl(mockRestTemplateBuilder);
+        dto = getBeerDto();
+        dtoJson = objectMapper.writeValueAsString(dto);
     }
 
     @Test
-    void testCreateBeer() throws JsonProcessingException {
-        BeerDTO dto = getBeerDto();
-        String payload = objectMapper.writeValueAsString(dto);
+    void testCreateBeer() {
         URI uri = UriComponentsBuilder.fromPath(BeerClientImpl.GET_BEER_BY_ID_PATH).build(dto.getId());
         server.expect(method(HttpMethod.POST))
                 .andExpect(requestTo(URL + BeerClientImpl.GET_BEER_PATH))
                 .andRespond(withAccepted().location(uri));
         server.expect(method(HttpMethod.GET))
                 .andExpect(requestToUriTemplate(URL + BeerClientImpl.GET_BEER_BY_ID_PATH, dto.getId()))
-                .andRespond(withSuccess(payload, MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess(dtoJson, MediaType.APPLICATION_JSON));
 
         BeerDTO savedDto = beerClient.createBeer(dto);
 
@@ -78,12 +80,10 @@ public class BeerClientMockTest {
     }
 
     @Test
-    void testGetBeerById() throws JsonProcessingException {
-        BeerDTO dto = getBeerDto();
-        String payload = objectMapper.writeValueAsString(dto);
+    void testGetBeerById() {
         server.expect(method(HttpMethod.GET))
                 .andExpect(requestToUriTemplate(URL + BeerClientImpl.GET_BEER_BY_ID_PATH, dto.getId()))
-                .andRespond(withSuccess(payload, MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess(dtoJson, MediaType.APPLICATION_JSON));
 
         BeerDTO savedDto = beerClient.getBeerById(dto.getId());
 
@@ -114,7 +114,7 @@ public class BeerClientMockTest {
     }
 
     BeerDTOPageImpl getPage() {
-        return new BeerDTOPageImpl(Collections.singletonList(getBeerDto()), 1, 25, 1);
+        return new BeerDTOPageImpl(Collections.singletonList(dto), 1, 25, 1);
     }
 
 }
