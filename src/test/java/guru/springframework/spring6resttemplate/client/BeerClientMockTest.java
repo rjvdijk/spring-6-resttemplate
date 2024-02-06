@@ -19,14 +19,18 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.math.BigDecimal;
+import java.net.URI;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withAccepted;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 @RestClientTest
@@ -57,27 +61,44 @@ public class BeerClientMockTest {
     }
 
     @Test
+    void testCreateBeer() throws JsonProcessingException {
+        BeerDTO dto = getBeerDto();
+        String payload = objectMapper.writeValueAsString(dto);
+        URI uri = UriComponentsBuilder.fromPath(BeerClientImpl.GET_BEER_BY_ID_PATH).build(dto.getId());
+        server.expect(method(HttpMethod.POST))
+                .andExpect(requestTo(URL + BeerClientImpl.GET_BEER_PATH))
+                .andRespond(withAccepted().location(uri));
+        server.expect(method(HttpMethod.GET))
+                .andExpect(requestToUriTemplate(URL + BeerClientImpl.GET_BEER_BY_ID_PATH, dto.getId()))
+                .andRespond(withSuccess(payload, MediaType.APPLICATION_JSON));
+
+        BeerDTO savedDto = beerClient.createBeer(dto);
+
+        assertThat(savedDto.getId()).isEqualTo(dto.getId());
+    }
+
+    @Test
     void testGetBeerById() throws JsonProcessingException {
         BeerDTO dto = getBeerDto();
         String payload = objectMapper.writeValueAsString(dto);
-
         server.expect(method(HttpMethod.GET))
                 .andExpect(requestToUriTemplate(URL + BeerClientImpl.GET_BEER_BY_ID_PATH, dto.getId()))
                 .andRespond(withSuccess(payload, MediaType.APPLICATION_JSON));
 
         BeerDTO savedDto = beerClient.getBeerById(dto.getId());
+
         assertThat(savedDto.getId()).isEqualTo(dto.getId());
     }
 
     @Test
     void testlistBeers() throws JsonProcessingException {
         String payload = objectMapper.writeValueAsString(getPage());
-
         server.expect(method(HttpMethod.GET))
                 .andExpect(requestTo(URL + BeerClientImpl.GET_BEER_PATH))
                 .andRespond(withSuccess(payload, MediaType.APPLICATION_JSON));
 
         Page<BeerDTO> dtos = beerClient.listBeers();
+
         assertThat(dtos.getContent()).isNotEmpty();
     }
 
@@ -93,7 +114,7 @@ public class BeerClientMockTest {
     }
 
     BeerDTOPageImpl getPage() {
-        return new BeerDTOPageImpl(Arrays.asList(getBeerDto()), 1, 25, 1);
+        return new BeerDTOPageImpl(Collections.singletonList(getBeerDto()), 1, 25, 1);
     }
 
 }
